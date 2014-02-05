@@ -24,6 +24,7 @@ from buildbot.changes import base
 from buildbot.util import deferredLocked
 from buildbot.util import json
 
+
 class BitbucketPullrequestPoller(base.PollingChangeSource):
     """This source will poll a bitbucket repo slug for pull requests and submit
     them to the change master."""
@@ -36,7 +37,7 @@ class BitbucketPullrequestPoller(base.PollingChangeSource):
 
     def __init__(self, owner, slug,
                  branch=None,
-                 pollInterval=10*60,
+                 pollInterval=10 * 60,
                  usetimestamps=True,
                  category=None,
                  project='',
@@ -49,13 +50,13 @@ class BitbucketPullrequestPoller(base.PollingChangeSource):
         self.slug = slug
         self.branch = branch
         base.PollingChangeSource.__init__(
-            self, name='/'.join([owner,slug]), pollInterval=pollInterval, pollAtLaunch=pollAtLaunch)
+            self, name='/'.join([owner, slug]), pollInterval=pollInterval, pollAtLaunch=pollAtLaunch)
         self.encoding = encoding
 
         if hasattr(pullrequest_filter, '__call__'):
             self.pullrequest_filter = pullrequest_filter
         else:
-            self.pullrequest_filter = (lambda _ : pullrequest_filter)
+            self.pullrequest_filter = (lambda _: pullrequest_filter)
 
         self.lastChange = time.time()
         self.lastPoll = time.time()
@@ -67,7 +68,7 @@ class BitbucketPullrequestPoller(base.PollingChangeSource):
 
     def describe(self):
         return "BitbucketPullrequestPoller watching the "\
-          "Bitbucket repository %s/%s, branch: %s" % (self.owner, self.slug, self.branch)
+            "Bitbucket repository %s/%s, branch: %s" % (self.owner, self.slug, self.branch)
 
     @deferredLocked('initLock')
     def poll(self):
@@ -78,9 +79,9 @@ class BitbucketPullrequestPoller(base.PollingChangeSource):
 
     def _getChanges(self):
         self.lastPoll = time.time()
-        log.msg("BitbucketPullrequestPoller: polling "\
-          "Bitbucket repository %s/%s, branch: %s" % (self.owner, self.slug, self.branch))
-        url = "https://bitbucket.org/api/2.0/repositories/%s/%s/pullrequests" % (self.owner,self.slug)
+        log.msg("BitbucketPullrequestPoller: polling "
+            "Bitbucket repository %s/%s, branch: %s" % (self.owner, self.slug, self.branch))
+        url = "https://bitbucket.org/api/2.0/repositories/%s/%s/pullrequests" % (self.owner, self.slug)
         return client.getPage(url, timeout=self.pollInterval)
 
     @defer.inlineCallbacks
@@ -105,15 +106,15 @@ class BitbucketPullrequestPoller(base.PollingChangeSource):
 
                     # filter pull requests by user function
                     if not self.pullrequest_filter(pr_json):
-                      log.msg('pull request does not match filter')
-                      continue
+                        log.msg('pull request does not match filter')
+                        continue
 
                     # access additional information
                     author = pr['author']['display_name']
                     prlink = pr['links']['html']['href']
                     # Get time updated time. Note that the timezone offset is ignored.
                     if self.usetimestamps:
-                        updated = datetime.strptime(pr['updated_on'][:-6],'%Y-%m-%dT%H:%M:%S.%f')
+                        updated = datetime.strptime(pr['updated_on'][:-6], '%Y-%m-%dT%H:%M:%S.%f')
                     else:
                         updated = datetime.now()
                     title = pr['title']
@@ -126,24 +127,24 @@ class BitbucketPullrequestPoller(base.PollingChangeSource):
                     # parse repo api page
                     page = yield client.getPage(str(pr['source']['repository']['links']['self']['href']))
                     repo_json = json.loads(page, encoding=self.encoding)
-                    repo=repo_json['links']['html']['href']
+                    repo = repo_json['links']['html']['href']
 
                     # update database
-                    yield self._setCurrentRev(nr,revision)
+                    yield self._setCurrentRev(nr, revision)
                     # emit the change
                     yield self.master.addChange(
-                       author=author,
-                       revision=revision,
-                       revlink=revlink,
-                       #files=files,
-                       comments='pull-request #%d: %s\n%s' % (nr,title,prlink),
-                       when_timestamp=updated,
-                       branch=self.branch,
-                       category=self.category,
-                       project=self.project,
-                       repository=repo,
-                       src='pull-request #%d' % nr,
-                     )
+                        author=author,
+                        revision=revision,
+                        revlink=revlink,
+                        #files=files,
+                        comments='pull-request #%d: %s\n%s' % (nr, title, prlink),
+                        when_timestamp=updated,
+                        branch=self.branch,
+                        category=self.category,
+                        project=self.project,
+                        repository=repo,
+                        src='pull-request #%d' % nr,
+                    )
 
     def _processChangesFailure(self, f):
         log.msg('BitbucketPullrequestPoller: json api poll failed')
@@ -151,25 +152,29 @@ class BitbucketPullrequestPoller(base.PollingChangeSource):
         # eat the failure to continue along the defered chain - we still want to catch up
         return None
 
-    def _getCurrentRev(self,pr_id):
+    def _getCurrentRev(self, pr_id):
         """Return a deferred datetime object for the given pull request number or None.
         """
         d = self._getStateObjectId()
+
         def oid_callback(oid):
             def result_callback(result):
                 return result
             current = self.master.db.state.getState(oid, 'pull_request%d' % pr_id, None)
             current.addCallback(result_callback)
             return current
+
         d.addCallback(oid_callback)
         return d
 
-    def _setCurrentRev(self,pr_id, rev):
+    def _setCurrentRev(self, pr_id, rev):
         """Set the datetime entry for a specifed pull request.
         """
         d = self._getStateObjectId()
+
         def oid_callback(oid):
             return self.master.db.state.setState(oid, 'pull_request%d' % pr_id, rev)
+
         d.addCallback(oid_callback)
         return d
 
