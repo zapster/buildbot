@@ -213,8 +213,13 @@ class MercurialExtractor(SourceStampExtractor):
             upstream = "r'%s'" % self.repository
         output = ''
         try:
-            output = yield self.dovc(["log", "--template", "{node}\\n", "-r",
-                                      "max(::. - outgoing(%s))" % upstream])
+            try:
+                output = yield self.dovc(["log", "--template", "{node}\\n", "-r",
+                                          "max(::. - outgoing(%s) - secret())" % upstream])
+            except RuntimeError:
+                # secret() is not supported in Mercurial prior version 2.1 -> fall back
+                output = yield self.dovc(["log", "--template", "{node}\\n", "-r",
+                                          "max(::. - outgoing(%s))" % upstream])
         except RuntimeError:
             # outgoing() will abort if no default-push/default path is configured
             if upstream:
